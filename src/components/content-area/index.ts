@@ -6,23 +6,18 @@ import {
   output,
   signal,
 } from "@angular/core";
-import { CommonModule } from "@angular/common";
-import { ObjectsStore } from "../../services/objects.store";
-import { ConfigStore } from "../../services/config.store";
+import { ConfigStore } from "@shared//services/config.store";
+import { ObjectsStore } from "@shared//services/objects.store";
+
+import { ToastService } from "@components/ui/toast.service";
 import { ObjectGridComponent } from "./object-grid.component";
 import { ObjectListComponent } from "./object-list.component";
 import { UploadDropzoneComponent } from "./upload-dropzone.component";
-import { ToastService } from "../ui/toast.service";
 
 @Component({
   selector: "app-content-area",
-  standalone: true,
-  imports: [
-    CommonModule,
-    ObjectGridComponent,
-    ObjectListComponent,
-    UploadDropzoneComponent,
-  ],
+
+  imports: [ObjectGridComponent, ObjectListComponent, UploadDropzoneComponent],
   template: `
     <div class="flex-1 flex flex-col relative">
       <!-- Drag and drop overlay -->
@@ -102,12 +97,14 @@ import { ToastService } from "../ui/toast.service";
           [items]="filteredItems()"
           [selectedKeys]="selectedKeys()"
           (selectionChange)="onSelectionChange($event)"
+          (itemAction)="onItemAction($event)"
         />
         } @else {
         <app-object-list
           [items]="filteredItems()"
           [selectedKeys]="selectedKeys()"
           (selectionChange)="onSelectionChange($event)"
+          (itemAction)="onItemAction($event)"
         />
         }
 
@@ -138,7 +135,7 @@ import { ToastService } from "../ui/toast.service";
     </div>
   `,
 })
-export class ContentAreaComponent {
+export default class ContentArea {
   private readonly objectsStore = inject(ObjectsStore);
   private readonly configStore = inject(ConfigStore);
   private readonly toast = inject(ToastService);

@@ -1,16 +1,15 @@
-import { Component, inject, OnInit, HostListener, signal } from "@angular/core";
-import { CommonModule } from "@angular/common";
+import { Component, HostListener, inject, OnInit, signal } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
-import { ObjectsStore } from "../../services/objects.store";
-import { SidebarComponent } from "./sidebar.component";
-import { TopbarComponent } from "./topbar.component";
-import { ContentAreaComponent } from "./content-area.component";
-import { StatusBarComponent } from "./status-bar.component";
+import ContentArea from "@components/content-area";
+import Sidebar from "@components/sidebar";
+import { ObjectsStore } from "@shared//services/objects.store";
+import { StatusBarComponent } from "../../../components/content-area/status-bar.component";
+import { TopbarComponent } from "../../../components/topbar.component";
 
 @Component({
   selector: "app-bucket-page",
   template: `
-    <div class="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div class="flex h-screen ">
       <!-- Sidebar -->
       <app-sidebar
         class="flex-shrink-0"
@@ -38,15 +37,9 @@ import { StatusBarComponent } from "./status-bar.component";
       </div>
     </div>
   `,
-  imports: [
-    CommonModule,
-    SidebarComponent,
-    TopbarComponent,
-    ContentAreaComponent,
-    StatusBarComponent,
-  ],
+  imports: [Sidebar, TopbarComponent, StatusBarComponent, Sidebar, ContentArea],
 })
-export class BucketPageComponent implements OnInit {
+export default class BucketPage implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private objectsStore = inject(ObjectsStore);

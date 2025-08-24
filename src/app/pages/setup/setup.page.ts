@@ -2,8 +2,8 @@ import { Component, inject, signal } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
-import { ConfigStore } from "../../services/config.store";
-import { ToastService } from "../ui/toast.service";
+import { ConfigStore } from "@shared//services/config.store";
+import { ToastService } from "../../../components/ui/toast.service";
 
 @Component({
   selector: "app-setup-page",
@@ -175,7 +175,7 @@ import { ToastService } from "../ui/toast.service";
   `,
   imports: [CommonModule, FormsModule],
 })
-export class SetupPageComponent {
+export default class SetupPageComponent {
   private configStore = inject(ConfigStore);
   private toastService = inject(ToastService);
   private router = inject(Router);

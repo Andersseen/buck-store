@@ -1,0 +1,5 @@
+{
+  "authBaseUrl": "http://127.0.0.1:8788",
+  "storageBaseUrl": "http://127.0.0.1:8787",
+  "publicBaseUrl": "http://127.0.0.1:8787"
+}
