@@ -6,9 +6,8 @@ import {
   output,
   signal,
 } from "@angular/core";
-import { CommonModule } from "@angular/common";
-import { ObjectsStore } from "@shared//services/objects.store";
 import { ConfigStore } from "@shared//services/config.store";
+import { ObjectsStore } from "@shared//services/objects.store";
 
 import { ToastService } from "@components/ui/toast.service";
 import { ObjectGridComponent } from "./object-grid.component";
@@ -18,12 +17,7 @@ import { UploadDropzoneComponent } from "./upload-dropzone.component";
 @Component({
   selector: "app-content-area",
 
-  imports: [
-    CommonModule,
-    ObjectGridComponent,
-    ObjectListComponent,
-    UploadDropzoneComponent,
-  ],
+  imports: [ObjectGridComponent, ObjectListComponent, UploadDropzoneComponent],
   template: `
     <div class="flex-1 flex flex-col relative">
       <!-- Drag and drop overlay -->
@@ -103,12 +97,14 @@ import { UploadDropzoneComponent } from "./upload-dropzone.component";
           [items]="filteredItems()"
           [selectedKeys]="selectedKeys()"
           (selectionChange)="onSelectionChange($event)"
+          (itemAction)="onItemAction($event)"
         />
         } @else {
         <app-object-list
           [items]="filteredItems()"
           [selectedKeys]="selectedKeys()"
           (selectionChange)="onSelectionChange($event)"
+          (itemAction)="onItemAction($event)"
         />
         }
 

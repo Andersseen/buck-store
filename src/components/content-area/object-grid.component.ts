@@ -126,7 +126,10 @@ export class ObjectGridComponent {
     selected: boolean;
     isRange?: boolean;
   }>();
-  itemAction = output<{ type: string; item: ObjectItem }>();
+  itemAction = output<{
+    type: "navigate" | "rename" | "delete" | "copy-url";
+    item: ObjectItem;
+  }>();
 
   protected formatFileSize = formatFileSize;
   protected formatDate = formatDate;
