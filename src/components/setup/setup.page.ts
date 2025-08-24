@@ -175,7 +175,7 @@ import { ToastService } from "../ui/toast.service";
   `,
   imports: [CommonModule, FormsModule],
 })
-export class SetupPageComponent {
+export default class SetupPageComponent {
   private configStore = inject(ConfigStore);
   private toastService = inject(ToastService);
   private router = inject(Router);

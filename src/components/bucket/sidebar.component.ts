@@ -5,9 +5,13 @@ import {
   OnInit,
   output,
   signal,
+  DestroyRef,
 } from "@angular/core";
-import { MockStorageApi } from "@shared//services/mock-storage.api";
-import { ObjectsStore } from "@shared//services/objects.store";
+import { takeUntilDestroyed } from "@angular/core/rxjs-interop";
+import { ObjectsStore } from "@shared/services/objects.store";
+import { R2StorageApi } from "@shared/services/r2-storage.api";
+import { ObjectItem } from "@shared/types/storage.types";
+import { catchError, of } from "rxjs";
 
 interface FolderNode {
   prefix: string;
@@ -20,6 +24,8 @@ interface FolderNode {
 
 @Component({
   selector: "app-sidebar",
+  standalone: true,
+  imports: [],
   template: `
     <aside
       class="bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 
@@ -63,8 +69,8 @@ interface FolderNode {
             <span>Root</span>
           </button>
 
-          <!-- Folder tree -->
-          @for (node of folderTree(); track $index) {
+          <!-- Level 0 -->
+          @for (node of folderTree(); track node.prefix) {
           <div>
             <button
               (click)="toggleFolder(node)"
@@ -84,6 +90,7 @@ interface FolderNode {
               <span>{{ node.name }}</span>
             </button>
 
+            <!-- Children (render perezoso) -->
             @if (node.isExpanded) { @for (child of node.children; track
             child.prefix) {
             <button
@@ -111,130 +118,104 @@ interface FolderNode {
       </div>
     </aside>
   `,
-  imports: [],
 })
 export class SidebarComponent implements OnInit {
-  private objectsStore = inject(ObjectsStore);
-  private mockApi = inject(MockStorageApi);
+  private readonly objectsStore = inject(ObjectsStore);
+  private readonly storageApi = inject(R2StorageApi);
+  private readonly destroyRef = inject(DestroyRef);
 
+  // inputs/outputs (Angular moderno)
   isCollapsed = input<boolean>(false);
   toggleCollapsed = output<boolean>();
   prefixSelected = output<string>();
 
+  // estado de navegación actual (del store)
   protected currentPrefix = this.objectsStore.currentPrefix;
+
+  // árbol raíz (solo primer nivel; hijos se cargan al expandir)
   protected folderTree = signal<FolderNode[]>([]);
 
   ngOnInit(): void {
-    this.loadFolderTree();
+    this.loadRootFolders();
   }
 
+  /** Seleccionar un prefijo y notificar al padre */
   protected selectPrefix(prefix: string): void {
     this.prefixSelected.emit(prefix);
+    // Opcional: navegar cargando el contenido en el store
+    this.objectsStore.loadItems(prefix, true);
   }
 
-  protected async toggleFolder(node: FolderNode): Promise<void> {
-    // First select the prefix
+  /** Expand/colapsa un nodo. Si se expande por primera vez, carga hijos desde la API */
+  protected toggleFolder(node: FolderNode): void {
+    // al click, seleccionamos (navegación)
     this.selectPrefix(node.prefix);
 
-    // Then handle expansion
-    if (node.hasChildren) {
-      node.isExpanded = !node.isExpanded;
+    // si puede tener hijos, alternamos estado y cargamos si es necesario
+    node.isExpanded = !node.isExpanded;
 
-      if (node.isExpanded && node.children.length === 0) {
-        await this.loadChildren(node);
-      }
-
-      this.folderTree.update((tree) => [...tree]);
+    if (node.isExpanded && node.children.length === 0) {
+      this.loadChildren(node);
+    } else {
+      // fuerza actualización del signal (copia superficial)
+      this.folderTree.update((t) => [...t]);
     }
   }
 
-  private async loadFolderTree(): Promise<void> {
-    try {
-      const result = await this.mockApi.list({ prefix: "", limit: 1000 });
-      console.log(result);
+  // =========================
+  // Cargas desde la API (Observables)
+  // =========================
 
-      const folders = result.items.filter((item) => item.isFolder);
-      console.log(folders);
-
-      // Build tree structure
-      const tree = this.buildTree(folders);
-      console.log(tree);
-      console.log(folders);
-
-      this.folderTree.set(tree);
-    } catch (error) {
-      console.error("Failed to load folder tree:", error);
-    }
-  }
-
-  private buildTree(
-    folders: Array<{ key: string; isFolder: boolean }>
-  ): FolderNode[] {
-    const rootNodes: FolderNode[] = [];
-    const nodeMap = new Map<string, FolderNode>();
-
-    // Sort folders by depth and name
-    const sortedFolders = folders.sort((a, b) => {
-      const depthA = a.key.split("/").filter((p) => p).length;
-      const depthB = b.key.split("/").filter((p) => p).length;
-      if (depthA !== depthB) return depthA - depthB;
-      return a.key.localeCompare(b.key);
-    });
-
-    for (const folder of sortedFolders) {
-      const parts = folder.key.split("/").filter((p) => p);
-      const level = parts.length - 1;
-      const name = parts[parts.length - 1];
-
-      const node: FolderNode = {
-        prefix: folder.key,
-        name,
-        isExpanded: level === 0, // Expand root level by default
-        children: [],
-        hasChildren: false,
-        level,
-      };
-
-      nodeMap.set(folder.key, node);
-
-      if (level === 0) {
-        rootNodes.push(node);
-      } else {
-        // Find parent
-        const parentPrefix = parts.slice(0, -1).join("/") + "/";
-        const parent = nodeMap.get(parentPrefix);
-        if (parent) {
-          parent.children.push(node);
-          parent.hasChildren = true;
-        }
-      }
-    }
-
-    return rootNodes;
-  }
-
-  private async loadChildren(node: FolderNode): Promise<void> {
-    try {
-      const result = await this.mockApi.list({
-        prefix: node.prefix,
-        limit: 1000,
+  /** Carga el primer nivel de carpetas (prefijo '') */
+  private loadRootFolders(): void {
+    this.storageApi
+      .list({ prefix: "", limit: 1000 })
+      .pipe(
+        catchError(() => of({ items: [], cursor: undefined })),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(({ items }) => {
+        const folders = items.filter((i) => i.isFolder);
+        const roots = this.toNodes(folders, 0 /*level*/);
+        // Para UX, podemos marcar hasChildren=true y que se confirme al expandir
+        roots.forEach((n) => (n.hasChildren = true));
+        this.folderTree.set(roots);
       });
-      const childFolders = result.items.filter((item) => item.isFolder);
+  }
 
-      // Convert to nodes
-      node.children = childFolders.map((folder) => {
-        const parts = folder.key.split("/").filter((p) => p);
-        return {
-          prefix: folder.key,
-          name: parts[parts.length - 1],
-          isExpanded: false,
+  /** Carga hijos directos de un nodo (prefijo = node.prefix) */
+  private loadChildren(node: FolderNode): void {
+    this.storageApi
+      .list({ prefix: node.prefix, limit: 1000 })
+      .pipe(
+        catchError(() => of({ items: [], cursor: undefined })),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(({ items }) => {
+        const folders = items.filter((i) => i.isFolder);
+        const children = this.toNodes(folders, node.level + 1);
+        // si no hay hijos, marca hasChildren = false
+        node.children = children;
+        node.hasChildren = children.length > 0;
+        this.folderTree.update((t) => [...t]);
+      });
+  }
+
+  /** Convierte objetos de tipo carpeta a nodos del árbol */
+  private toNodes(folders: ObjectItem[], level: number): FolderNode[] {
+    return folders
+      .map((f) => {
+        const parts = f.key.split("/").filter((p) => p);
+        const name = parts[parts.length - 1] ?? "";
+        return <FolderNode>{
+          prefix: f.key, // siempre termina en '/'
+          name,
+          isExpanded: level === 0 ? false : false, // root cerrado por defecto
           children: [],
-          hasChildren: true, // Assume folders have children until proven otherwise
-          level: node.level + 1,
+          hasChildren: true, // asumimos que puede tener; se corrige al cargar
+          level,
         };
-      });
-    } catch (error) {
-      console.error("Failed to load folder children:", error);
-    }
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 }

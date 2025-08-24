@@ -1,6 +1,4 @@
 import { Routes } from "@angular/router";
-import { SetupPageComponent } from "@components/setup/setup-page.component";
-import { BucketPageComponent } from "@components/bucket/bucket-page.component";
 
 const routes: Routes = [
   {
@@ -10,13 +8,14 @@ const routes: Routes = [
   },
   {
     path: "setup",
-    component: SetupPageComponent,
+    loadComponent: () => import("@components/setup/setup.page"),
+
     title: "Storage Setup",
   },
   {
     path: "bucket",
-    component: BucketPageComponent,
     title: "Storage Bucket",
+    loadComponent: () => import("@components/bucket/bucket.page"),
   },
   {
     path: "**",

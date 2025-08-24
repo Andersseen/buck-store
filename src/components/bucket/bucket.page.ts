@@ -44,7 +44,7 @@ import { TopbarComponent } from "./topbar.component";
     StatusBarComponent,
   ],
 })
-export class BucketPageComponent implements OnInit {
+export default class BucketPage implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private objectsStore = inject(ObjectsStore);
