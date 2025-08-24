@@ -12,7 +12,7 @@ import { ConfigStore } from "@shared//services/config.store";
 import { ObjectGridComponent } from "./object-grid.component";
 import { ObjectListComponent } from "./object-list.component";
 import { UploadDropzoneComponent } from "./upload-dropzone.component";
-import { ToastService } from "../ui/toast.service";
+import { ToastService } from "@components/ui/toast.service";
 
 @Component({
   selector: "app-content-area",

@@ -2,9 +2,9 @@ import { Component, HostListener, inject, OnInit, signal } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { ObjectsStore } from "@shared//services/objects.store";
 import { ContentAreaComponent } from "./content-area.component";
-import { SidebarComponent } from "./sidebar.component";
 import { StatusBarComponent } from "./status-bar.component";
 import { TopbarComponent } from "./topbar.component";
+import Sidebar from "@components/sidebar";
 
 @Component({
   selector: "app-bucket-page",
@@ -38,10 +38,11 @@ import { TopbarComponent } from "./topbar.component";
     </div>
   `,
   imports: [
-    SidebarComponent,
+    Sidebar,
     TopbarComponent,
     ContentAreaComponent,
     StatusBarComponent,
+    Sidebar,
   ],
 })
 export default class BucketPage implements OnInit {

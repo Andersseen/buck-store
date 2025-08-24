@@ -3,7 +3,7 @@ import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { Router } from "@angular/router";
 import { ConfigStore } from "@shared//services/config.store";
-import { ToastService } from "../ui/toast.service";
+import { ToastService } from "../../../components/ui/toast.service";
 
 @Component({
   selector: "app-setup-page",

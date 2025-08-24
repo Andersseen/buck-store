@@ -8,14 +8,14 @@ const routes: Routes = [
   },
   {
     path: "setup",
-    loadComponent: () => import("@components/setup/setup.page"),
+    loadComponent: () => import("@app/pages/setup/setup.page"),
 
     title: "Storage Setup",
   },
   {
     path: "bucket",
     title: "Storage Bucket",
-    loadComponent: () => import("@components/bucket/bucket.page"),
+    loadComponent: () => import("@app/pages/bucket/bucket.page"),
   },
   {
     path: "**",
