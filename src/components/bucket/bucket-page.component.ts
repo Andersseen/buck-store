@@ -1,16 +1,15 @@
-import { Component, inject, OnInit, HostListener, signal } from "@angular/core";
-import { CommonModule } from "@angular/common";
+import { Component, HostListener, inject, OnInit, signal } from "@angular/core";
 import { ActivatedRoute, Router } from "@angular/router";
 import { ObjectsStore } from "@shared//services/objects.store";
-import { SidebarComponent } from "./sidebar.component";
-import { TopbarComponent } from "./topbar.component";
 import { ContentAreaComponent } from "./content-area.component";
+import { SidebarComponent } from "./sidebar.component";
 import { StatusBarComponent } from "./status-bar.component";
+import { TopbarComponent } from "./topbar.component";
 
 @Component({
   selector: "app-bucket-page",
   template: `
-    <div class="flex h-screen bg-gray-50 dark:bg-gray-900">
+    <div class="flex h-screen ">
       <!-- Sidebar -->
       <app-sidebar
         class="flex-shrink-0"
@@ -39,7 +38,6 @@ import { StatusBarComponent } from "./status-bar.component";
     </div>
   `,
   imports: [
-    CommonModule,
     SidebarComponent,
     TopbarComponent,
     ContentAreaComponent,

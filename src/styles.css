@@ -1,28 +1,26 @@
 @import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --color-background: oklch(0.97 0 0);
+  --color-foreground: oklch(27.8% 0.033 256.848);
+  --color-primary: oklch(0.293 0.136 325.661);
+}
+
+@layer base {
+  .dark {
+    --color-background: oklch(27.8% 0.033 256.848);
+    --color-foreground: oklch(0.97 0 0);
+  }
+}
 
 :root {
   --sidebar-width: 280px;
   --topbar-height: 64px;
 
-  /* Light theme colors */
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-tertiary: #f1f5f9;
   --text-primary: #0f172a;
   --text-secondary: #475569;
   --border-color: #e2e8f0;
-  --accent-color: #3b82f6;
-}
-
-.dark {
-  /* Dark theme colors */
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-tertiary: #334155;
-  --text-primary: #f8fafc;
-  --text-secondary: #cbd5e1;
-  --border-color: #475569;
-  --accent-color: #60a5fa;
 }
 
 * {
@@ -32,8 +30,6 @@
 body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
 }
 
 /* Animations */
