@@ -1,31 +1,55 @@
 {
-  "name": "angular-starter",
-  "private": true,
+  "name": "buck-store",
+  "version": "1.0.0",
+  "private": false,
+  "description": "Starter Angular 20 project with Tailwind CSS 4, optimized for modern web apps.",
+  "author": {
+    "name": "Andrii Pap",
+    "url": "https://github.com/Andersseen"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/Andersseen/buck-store#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Andersseen/buck-store.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Andersseen/buck-store/issues"
+  },
+  "keywords": [
+    "angular",
+    "angular20",
+    "tailwindcss",
+    "typescript",
+    "starter",
+    "frontend",
+    "webapp"
+  ],
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build"
   },
   "dependencies": {
-    "@angular/animations": "^20.0.0",
+    "@angular/animations": "^20.2.1",
     "@angular/cdk": "^20.2.0",
-    "@angular/common": "^20.0.0",
-    "@angular/compiler": "^20.0.0",
-    "@angular/core": "^20.0.0",
-    "@angular/forms": "^20.0.0",
-    "@angular/platform-browser": "^20.0.0",
-    "@angular/router": "^20.0.0",
+    "@angular/common": "^20.2.1",
+    "@angular/compiler": "^20.2.1",
+    "@angular/core": "^20.2.1",
+    "@angular/forms": "^20.2.1",
+    "@angular/platform-browser": "^20.2.1",
+    "@angular/router": "^20.2.1",
     "@tailwindcss/postcss": "^4.1.12",
     "postcss": "^8.5.6",
-    "rxjs": "^7.8.1",
+    "rxjs": "^7.8.2",
     "tailwindcss": "^4.1.12",
-    "tslib": "^2.5.0",
-    "zone.js": "~0.15.0"
+    "tslib": "^2.8.1",
+    "zone.js": "~0.15.1"
   },
   "devDependencies": {
-    "@angular/build": "^20.0.0",
-    "@angular/cli": "^20.0.0",
-    "@angular/compiler-cli": "^20.0.0",
-    "typescript": "^5.8.2"
+    "@angular/build": "^20.2.0",
+    "@angular/cli": "^20.2.0",
+    "@angular/compiler-cli": "^20.2.1",
+    "typescript": "^5.9.2"
   }
 }
