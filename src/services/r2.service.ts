@@ -1,17 +1,15 @@
 // src/app/data/r2.service.ts
-import { HttpClient, HttpParams } from "@angular/common/http";
 import { Injectable, InjectionToken, inject } from "@angular/core";
+import { HttpClient, HttpHeaders, HttpParams } from "@angular/common/http";
+import { Observable } from "rxjs";
 
 export const R2_API_BASE = new InjectionToken<string>("R2_API_BASE", {
-  factory: () => "/api", // default base (adjust or provide with `provideR2Api(...)`)
+  factory: () => "http://127.0.0.1:8787", // cambia a tu workers.dev o proxy
 });
-
-// Helper provider for setup in main.ts or a feature bootstrap
 export function provideR2Api(baseUrl: string) {
   return { provide: R2_API_BASE, useValue: baseUrl };
 }
 
-/** Types **/
 export type R2Object = {
   key: string;
   size: number;
@@ -19,8 +17,8 @@ export type R2Object = {
   uploaded?: string;
   httpMetadata?: {
     contentType?: string;
-    contentLanguage?: string;
     cacheControl?: string;
+    contentLanguage?: string;
   };
   customMetadata?: Record<string, string>;
 };
@@ -28,7 +26,7 @@ export type R2Object = {
 export type ListResponse = {
   prefix: string;
   objects: R2Object[];
-  prefixes: string[]; // “folders” (common prefixes)
+  prefixes: string[];
   truncated: boolean;
   cursor?: string | null;
 };
@@ -36,118 +34,75 @@ export type ListResponse = {
 @Injectable({ providedIn: "root" })
 export class R2Service {
   private readonly http = inject(HttpClient);
-  private readonly base = inject(R2_API_BASE); // e.g. "http://127.0.0.1:8787" or your workers.dev URL
+  private readonly base = inject(R2_API_BASE);
 
-  /** Build query string */
   private qs(query: Record<string, string | number | undefined>) {
-    const p = new HttpParams({
+    const params = new HttpParams({
       fromObject: Object.fromEntries(
         Object.entries(query)
           .filter(([, v]) => v !== undefined)
           .map(([k, v]) => [k, String(v)])
       ),
     });
-    const s = p.toString();
+    const s = params.toString();
     return s ? `?${s}` : "";
   }
 
-  /** List objects and "folders" under a prefix */
-  list(prefix = "", opts?: { cursor?: string; limit?: number }) {
+  list(
+    prefix = "",
+    opts?: { cursor?: string; limit?: number }
+  ): Observable<ListResponse> {
     const url = `${this.base}/objects${this.qs({
       prefix,
       cursor: opts?.cursor,
       limit: opts?.limit,
     })}`;
-    return this.http.get<ListResponse>(url).toPromise();
+    return this.http.get<ListResponse>(url);
   }
 
-  /** Convenience: list only folder names directly under prefix (no trailing slash) */
-  async listFolders(prefix = ""): Promise<string[]> {
-    const res = await this.list(prefix);
-    return (res?.prefixes ?? []).map((p) =>
-      p.replace(prefix, "").replace(/\/$/, "")
-    );
-  }
-
-  /** Convenience: list only files directly under prefix (exclude "folders") */
-  async listFiles(prefix = ""): Promise<R2Object[]> {
-    const res = await this.list(prefix);
-    return res?.objects ?? [];
-  }
-
-  /** Create a "folder" (actually a zero-byte object ending with "/") */
-  createFolder(prefix: string) {
+  createFolder(prefix: string): Observable<{ ok: true; key: string }> {
     const url = `${this.base}/folder${this.qs({ prefix })}`;
-    return this.http.post<{ ok: true; key: string }>(url, null).toPromise();
+    return this.http.post<{ ok: true; key: string }>(url, null);
   }
 
-  /**
-   * Upload an object (PUT /object?key=...)
-   * - Uses fetch to stream binary without JSON transformations.
-   * - contentType is inferred from Blob/File when possible.
-   */
-  async uploadObject(
+  uploadObject(
     key: string,
     data: Blob | ArrayBuffer | Uint8Array,
     contentType?: string
   ) {
     const url = `${this.base}/object${this.qs({ key })}`;
-    const body: any =
+    const headers = new HttpHeaders({
+      "Content-Type":
+        contentType ??
+        (data instanceof Blob && data.type
+          ? data.type
+          : "application/octet-stream"),
+    });
+    const body =
       data instanceof Blob
         ? data
         : data instanceof ArrayBuffer
-        ? data
+        ? new Blob([data])
         : data instanceof Uint8Array
-        ? data
-        : new Uint8Array(0);
+        ? new Blob([data.buffer] as any)
+        : new Blob([]);
 
-    const res = await fetch(url, {
-      method: "PUT",
-      headers: {
-        "Content-Type":
-          contentType ??
-          (data instanceof Blob && data.type
-            ? data.type
-            : "application/octet-stream"),
-      },
-      body,
-    });
-
-    if (!res.ok)
-      throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
-    return (await res.json()) as { ok: boolean; key: string };
+    return this.http.put<{ ok: boolean; key: string }>(url, body, { headers });
   }
 
-  /** Delete object by key */
   deleteObject(key: string) {
     const url = `${this.base}/object${this.qs({ key })}`;
-    return this.http.delete<{ ok: true }>(url).toPromise();
+    return this.http.delete<{ ok: true }>(url);
   }
 
-  /**
-   * Move/Rename object
-   * (Worker implements copy+delete under the hood)
-   */
   moveObject(from: string, to: string) {
     const url = `${this.base}/move`;
-    return this.http
-      .post<{ ok: true; from: string; to: string }>(url, { from, to })
-      .toPromise();
+    return this.http.post<{ ok: true; from: string; to: string }>(url, {
+      from,
+      to,
+    });
   }
 
-  /**
-   * Get object as Blob (served by the Worker)
-   * You can then createObjectURL(blob) or pass to <img [src]>
-   */
-  async getObjectBlob(key: string): Promise<Blob> {
-    const url = `${this.base}/object${this.qs({ key })}`;
-    const res = await fetch(url, { method: "GET" });
-    if (!res.ok)
-      throw new Error(`Get object failed: ${res.status} ${res.statusText}`);
-    return await res.blob();
-  }
-
-  /** Build a direct URL to the Worker for an object key (useful in templates) */
   buildObjectUrl(key: string) {
     return `${this.base}/object${this.qs({ key })}`;
   }

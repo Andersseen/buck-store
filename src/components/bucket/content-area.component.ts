@@ -1,4 +1,11 @@
-import { Component, inject, output, HostListener } from "@angular/core";
+import {
+  Component,
+  HostListener,
+  effect,
+  inject,
+  output,
+  signal,
+} from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { ObjectsStore } from "../../services/objects.store";
 import { ConfigStore } from "../../services/config.store";
@@ -9,20 +16,27 @@ import { ToastService } from "../ui/toast.service";
 
 @Component({
   selector: "app-content-area",
+  standalone: true,
+  imports: [
+    CommonModule,
+    ObjectGridComponent,
+    ObjectListComponent,
+    UploadDropzoneComponent,
+  ],
   template: `
     <div class="flex-1 flex flex-col relative">
       <!-- Drag and drop overlay -->
       <app-upload-dropzone
         class="absolute inset-0 z-10"
-        [class.opacity-0]="!isDragOver"
-        [class.pointer-events-none]="!isDragOver"
+        [class.opacity-0]="!isDragOver()"
+        [class.pointer-events-none]="!isDragOver()"
         (filesDropped)="onFilesDropped($event)"
       />
 
       <!-- Content -->
       <div
         class="flex-1 p-4 transition-opacity"
-        [class.opacity-50]="isDragOver"
+        [class.opacity-50]="isDragOver()"
         (dragover)="onDragOver($event)"
         (dragenter)="onDragEnter($event)"
         (dragleave)="onDragLeave($event)"
@@ -39,7 +53,6 @@ import { ToastService } from "../ui/toast.service";
           </div>
         </div>
         }
-
         <!-- Error state -->
         @else if (error()) {
         <div class="flex items-center justify-center h-64">
@@ -58,7 +71,6 @@ import { ToastService } from "../ui/toast.service";
           </div>
         </div>
         }
-
         <!-- Empty state -->
         @else if (filteredItems().length === 0) {
         <div class="flex items-center justify-center h-64">
@@ -84,21 +96,18 @@ import { ToastService } from "../ui/toast.service";
           </div>
         </div>
         }
-
         <!-- Content views -->
         @else { @if (viewMode() === 'grid') {
         <app-object-grid
           [items]="filteredItems()"
           [selectedKeys]="selectedKeys()"
           (selectionChange)="onSelectionChange($event)"
-          (itemAction)="onItemAction($event)"
         />
         } @else {
         <app-object-list
           [items]="filteredItems()"
           [selectedKeys]="selectedKeys()"
           (selectionChange)="onSelectionChange($event)"
-          (itemAction)="onItemAction($event)"
         />
         }
 
@@ -107,9 +116,8 @@ import { ToastService } from "../ui/toast.service";
         <div class="mt-8 text-center">
           <button
             (click)="loadMore()"
-            class="px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 
-                       dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 
-                       rounded-lg transition-colors"
+            class="px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600
+                       text-gray-700 dark:text-gray-300 rounded-lg transition-colors"
           >
             Load More
           </button>
@@ -129,20 +137,15 @@ import { ToastService } from "../ui/toast.service";
       </div>
     </div>
   `,
-  imports: [
-    CommonModule,
-    ObjectGridComponent,
-    ObjectListComponent,
-    UploadDropzoneComponent,
-  ],
 })
 export class ContentAreaComponent {
-  private objectsStore = inject(ObjectsStore);
-  private configStore = inject(ConfigStore);
-  private toastService = inject(ToastService);
+  private readonly objectsStore = inject(ObjectsStore);
+  private readonly configStore = inject(ConfigStore);
+  private readonly toast = inject(ToastService);
 
   itemsSelected = output<string[]>();
 
+  // signals desde el store
   protected loading = this.objectsStore.loading;
   protected error = this.objectsStore.error;
   protected filteredItems = this.objectsStore.filteredItems;
@@ -151,7 +154,17 @@ export class ContentAreaComponent {
   protected searchQuery = this.objectsStore.searchQuery;
   protected viewMode = this.objectsStore.viewMode;
 
-  protected isDragOver = false;
+  protected isDragOver = signal(false);
+
+  constructor() {
+    // Efecto reactivo: si aparece error, toast
+    effect(() => {
+      const err = this.error();
+      if (err) this.toast.error("Operation failed", err);
+    });
+  }
+
+  // ---------- UI actions ----------
 
   protected onSelectionChange(selection: {
     key: string;
@@ -159,24 +172,23 @@ export class ContentAreaComponent {
     isRange?: boolean;
   }): void {
     if (selection.isRange && this.objectsStore.selectedKeys().size > 0) {
-      // Range selection - select from last selected to current
       const selectedArray = Array.from(this.objectsStore.selectedKeys());
       const lastSelected = selectedArray[selectedArray.length - 1];
       this.objectsStore.selectRange(lastSelected, selection.key);
     } else {
       this.objectsStore.toggleSelection(selection.key);
     }
-
-    // Emit current selection
     this.itemsSelected.emit(Array.from(this.objectsStore.selectedKeys()));
   }
 
-  protected onItemAction(action: { type: string; item: any }): void {
+  protected onItemAction(action: {
+    type: "navigate" | "rename" | "delete" | "copy-url";
+    item: any;
+  }): void {
     switch (action.type) {
       case "navigate":
         if (action.item.isFolder) {
-          // Navigate to folder - this would typically be handled by the parent
-          console.log("Navigate to folder:", action.item.key);
+          this.objectsStore.loadItems(action.item.key, true); // navegar cargando ese prefijo
         }
         break;
       case "rename":
@@ -195,23 +207,23 @@ export class ContentAreaComponent {
     this.objectsStore.loadItems(this.objectsStore.currentPrefix(), true);
   }
 
-  protected async loadMore(): Promise<void> {
-    await this.objectsStore.loadMore();
+  protected loadMore(): void {
+    this.objectsStore.loadMore();
   }
 
   protected triggerUpload(): void {
     const input = document.createElement("input");
     input.type = "file";
     input.multiple = true;
-    input.accept = "image/*";
+    input.accept = "*/*";
     input.onchange = (event) => {
       const files = (event.target as HTMLInputElement).files;
-      if (files && files.length > 0) {
-        this.handleFileUploads(Array.from(files));
-      }
+      if (files && files.length > 0) this.handleFileUploads(Array.from(files));
     };
     input.click();
   }
+
+  // ---------- Drag & Drop ----------
 
   @HostListener("dragover", ["$event"])
   protected onDragOver(event: DragEvent): void {
@@ -223,7 +235,7 @@ export class ContentAreaComponent {
   protected onDragEnter(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    this.isDragOver = true;
+    this.isDragOver.set(true);
   }
 
   @HostListener("dragleave", ["$event"])
@@ -234,7 +246,7 @@ export class ContentAreaComponent {
       !event.relatedTarget ||
       !(event.currentTarget as Element).contains(event.relatedTarget as Node)
     ) {
-      this.isDragOver = false;
+      this.isDragOver.set(false);
     }
   }
 
@@ -242,78 +254,54 @@ export class ContentAreaComponent {
   protected onDrop(event: DragEvent): void {
     event.preventDefault();
     event.stopPropagation();
-    this.isDragOver = false;
+    this.isDragOver.set(false);
 
     const files = Array.from(event.dataTransfer?.files || []);
-    if (files.length > 0) {
-      this.handleFileUploads(files);
-    }
+    if (files.length > 0) this.handleFileUploads(files);
   }
 
   protected onFilesDropped(files: File[]): void {
     this.handleFileUploads(files);
   }
 
-  private async handleFileUploads(files: File[]): Promise<void> {
-    for (const file of files) {
-      try {
-        await this.objectsStore.uploadFile(file);
-        this.toastService.success(
-          "Upload successful",
-          `${file.name} uploaded successfully`
-        );
-      } catch (error) {
-        this.toastService.error(
-          "Upload failed",
-          `Failed to upload ${file.name}`
-        );
-      }
-    }
+  // ---------- Helpers ----------
+
+  private handleFileUploads(files: File[]): void {
+    // Subida optimista (el store maneja loading/error/refresh internamente)
+    files.forEach((file) => {
+      this.objectsStore.uploadFile(file);
+      this.toast.success("Uploading…", `${file.name}`);
+    });
   }
 
   private showRenameDialog(item: any): void {
-    const newName = prompt("Enter new name:", item.key.split("/").pop());
-    if (newName && newName !== item.key.split("/").pop()) {
-      this.objectsStore
-        .renameItem(item.key, newName)
-        .then(() => {
-          this.toastService.success("Renamed", `Item renamed to ${newName}`);
-        })
-        .catch((error) => {
-          this.toastService.error("Rename failed", error.message);
-        });
+    const oldName = item.key.split("/").pop();
+    const newName = prompt("Enter new name:", oldName);
+    if (newName && newName !== oldName) {
+      this.objectsStore.renameItem(item.key, newName);
+      this.toast.success("Renaming…", `Renaming to ${newName}`);
     }
   }
 
   private showDeleteDialog(keys: string[]): void {
-    const itemCount = keys.length;
+    const count = keys.length;
     const message =
-      itemCount === 1
-        ? `Are you sure you want to delete this item?`
-        : `Are you sure you want to delete ${itemCount} items?`;
-
+      count === 1
+        ? "Are you sure you want to delete this item?"
+        : `Are you sure you want to delete ${count} items?`;
     if (confirm(message)) {
-      this.objectsStore
-        .deleteItems(keys)
-        .then(() => {
-          this.toastService.success("Deleted", `${itemCount} item(s) deleted`);
-        })
-        .catch((error) => {
-          this.toastService.error("Delete failed", error.message);
-        });
+      this.objectsStore.deleteItems(keys);
+      this.toast.success("Deleting…", `${count} item(s)`);
     }
   }
 
-  private async copyPublicUrl(key: string): Promise<void> {
-    const publicUrl = this.configStore.config().publicBaseUrl
-      ? `${this.configStore.config().publicBaseUrl}/${key}`
-      : `No public URL configured`;
+  private copyPublicUrl(key: string): void {
+    const base = this.configStore.config().publicBaseUrl;
+    const publicUrl = base ? `${base}/${key}` : "No public URL configured";
 
-    try {
-      await navigator.clipboard.writeText(publicUrl);
-      this.toastService.success("Copied!", "Public URL copied to clipboard");
-    } catch (error) {
-      this.toastService.error("Copy failed", "Could not copy to clipboard");
-    }
+    navigator.clipboard.writeText(publicUrl).then(
+      () => this.toast.success("Copied!", "Public URL copied to clipboard"),
+      () => this.toast.error("Copy failed", "Could not copy to clipboard")
+    );
   }
 }
