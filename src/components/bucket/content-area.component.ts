@@ -7,8 +7,8 @@ import {
   signal,
 } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { ObjectsStore } from "../../services/objects.store";
-import { ConfigStore } from "../../services/config.store";
+import { ObjectsStore } from "@shared//services/objects.store";
+import { ConfigStore } from "@shared//services/config.store";
 import { ObjectGridComponent } from "./object-grid.component";
 import { ObjectListComponent } from "./object-list.component";
 import { UploadDropzoneComponent } from "./upload-dropzone.component";

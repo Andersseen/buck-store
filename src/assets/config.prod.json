@@ -1,0 +1,5 @@
+{
+  "authBaseUrl": "https://auth.YOUR.workers.dev",
+  "storageBaseUrl": "https://storage.YOUR.workers.dev",
+  "publicBaseUrl": "https://cdn.YOUR.domain"
+}

@@ -1,6 +1,6 @@
 import { Component, inject, OnInit } from "@angular/core";
 import { RouterOutlet } from "@angular/router";
-import { ConfigStore } from "../../services/config.store";
+import { ConfigStore } from "@shared/services/config.store";
 import { ToastComponent } from "../ui/toast.component";
 
 @Component({

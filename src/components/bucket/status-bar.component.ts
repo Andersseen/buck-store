@@ -1,7 +1,7 @@
 import { Component, inject, computed } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { ObjectsStore } from "../../services/objects.store";
-import { UploadStore } from "../../services/upload.store";
+import { ObjectsStore } from "@shared//services/objects.store";
+import { UploadStore } from "@shared//services/upload.store";
 
 @Component({
   selector: "app-status-bar",

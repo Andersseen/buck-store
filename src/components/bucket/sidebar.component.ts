@@ -6,8 +6,8 @@ import {
   output,
   signal,
 } from "@angular/core";
-import { MockStorageApi } from "../../services/mock-storage.api";
-import { ObjectsStore } from "../../services/objects.store";
+import { MockStorageApi } from "@shared//services/mock-storage.api";
+import { ObjectsStore } from "@shared//services/objects.store";
 
 interface FolderNode {
   prefix: string;

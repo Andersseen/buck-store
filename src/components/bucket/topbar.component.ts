@@ -1,8 +1,8 @@
 import { Component, inject, output, signal } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { ObjectsStore } from "../../services/objects.store";
-import { ConfigStore } from "../../services/config.store";
+import { ObjectsStore } from "@shared//services/objects.store";
+import { ConfigStore } from "@shared//services/config.store";
 
 @Component({
   selector: "app-topbar",
@@ -145,9 +145,7 @@ import { ConfigStore } from "../../services/config.store";
         class="mt-3 px-4 py-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg flex items-center justify-between"
       >
         <span class="text-sm text-blue-700 dark:text-blue-300">
-          {{ selectedCount() }} item{{
-            selectedCount() > 1 ? "s" : ""
-          }}
+          {{ selectedCount() }} item{{ selectedCount() > 1 ? "s" : "" }}
           selected
         </span>
         <div class="flex space-x-2">

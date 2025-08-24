@@ -1,11 +1,11 @@
 import { Component, input, output, HostListener } from "@angular/core";
 import { CommonModule } from "@angular/common";
-import { ObjectItem } from "../../types/storage.types";
+import { ObjectItem } from "../../shared/types/storage.types";
 import {
   formatFileSize,
   formatDate,
   isImageFile,
-} from "../../utils/file.utils";
+} from "../../shared/utils/file.utils";
 
 @Component({
   selector: "app-object-grid",

@@ -1,7 +1,7 @@
 import { Component, inject, OnInit, HostListener, signal } from "@angular/core";
 import { CommonModule } from "@angular/common";
 import { ActivatedRoute, Router } from "@angular/router";
-import { ObjectsStore } from "../../services/objects.store";
+import { ObjectsStore } from "@shared//services/objects.store";
 import { SidebarComponent } from "./sidebar.component";
 import { TopbarComponent } from "./topbar.component";
 import { ContentAreaComponent } from "./content-area.component";
