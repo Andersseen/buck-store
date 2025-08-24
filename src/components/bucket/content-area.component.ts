@@ -1,0 +1,319 @@
+import { Component, inject, output, HostListener } from "@angular/core";
+import { CommonModule } from "@angular/common";
+import { ObjectsStore } from "../../services/objects.store";
+import { ConfigStore } from "../../services/config.store";
+import { ObjectGridComponent } from "./object-grid.component";
+import { ObjectListComponent } from "./object-list.component";
+import { UploadDropzoneComponent } from "./upload-dropzone.component";
+import { ToastService } from "../ui/toast.service";
+
+@Component({
+  selector: "app-content-area",
+  template: `
+    <div class="flex-1 flex flex-col relative">
+      <!-- Drag and drop overlay -->
+      <app-upload-dropzone
+        class="absolute inset-0 z-10"
+        [class.opacity-0]="!isDragOver"
+        [class.pointer-events-none]="!isDragOver"
+        (filesDropped)="onFilesDropped($event)"
+      />
+
+      <!-- Content -->
+      <div
+        class="flex-1 p-4 transition-opacity"
+        [class.opacity-50]="isDragOver"
+        (dragover)="onDragOver($event)"
+        (dragenter)="onDragEnter($event)"
+        (dragleave)="onDragLeave($event)"
+        (drop)="onDrop($event)"
+      >
+        <!-- Loading state -->
+        @if (loading() && filteredItems().length === 0) {
+        <div class="flex items-center justify-center h-64">
+          <div class="text-center">
+            <div
+              class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"
+            ></div>
+            <p class="mt-2 text-gray-600 dark:text-gray-400">Loading...</p>
+          </div>
+        </div>
+        }
+
+        <!-- Error state -->
+        @else if (error()) {
+        <div class="flex items-center justify-center h-64">
+          <div class="text-center">
+            <div class="text-red-500 text-4xl mb-4">⚠️</div>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+              Failed to load
+            </h3>
+            <p class="mt-2 text-gray-600 dark:text-gray-400">{{ error() }}</p>
+            <button
+              (click)="retry()"
+              class="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+        }
+
+        <!-- Empty state -->
+        @else if (filteredItems().length === 0) {
+        <div class="flex items-center justify-center h-64">
+          <div class="text-center">
+            <div class="text-gray-400 text-6xl mb-4">📁</div>
+            <h3 class="text-lg font-medium text-gray-900 dark:text-gray-100">
+              No items found
+            </h3>
+            <p class="mt-2 text-gray-600 dark:text-gray-400">
+              @if (searchQuery()) { No items match your search "{{
+                searchQuery()
+              }}" } @else { This folder is empty. Upload some files to get
+              started. }
+            </p>
+            @if (!searchQuery()) {
+            <button
+              (click)="triggerUpload()"
+              class="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+            >
+              Upload Files
+            </button>
+            }
+          </div>
+        </div>
+        }
+
+        <!-- Content views -->
+        @else { @if (viewMode() === 'grid') {
+        <app-object-grid
+          [items]="filteredItems()"
+          [selectedKeys]="selectedKeys()"
+          (selectionChange)="onSelectionChange($event)"
+          (itemAction)="onItemAction($event)"
+        />
+        } @else {
+        <app-object-list
+          [items]="filteredItems()"
+          [selectedKeys]="selectedKeys()"
+          (selectionChange)="onSelectionChange($event)"
+          (itemAction)="onItemAction($event)"
+        />
+        }
+
+        <!-- Load more -->
+        @if (hasMore() && !loading()) {
+        <div class="mt-8 text-center">
+          <button
+            (click)="loadMore()"
+            class="px-6 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 
+                       dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 
+                       rounded-lg transition-colors"
+          >
+            Load More
+          </button>
+        </div>
+        } @if (loading() && filteredItems().length > 0) {
+        <div class="mt-4 text-center">
+          <div
+            class="inline-flex items-center text-gray-600 dark:text-gray-400"
+          >
+            <div
+              class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600 mr-2"
+            ></div>
+            Loading more...
+          </div>
+        </div>
+        } }
+      </div>
+    </div>
+  `,
+  imports: [
+    CommonModule,
+    ObjectGridComponent,
+    ObjectListComponent,
+    UploadDropzoneComponent,
+  ],
+})
+export class ContentAreaComponent {
+  private objectsStore = inject(ObjectsStore);
+  private configStore = inject(ConfigStore);
+  private toastService = inject(ToastService);
+
+  itemsSelected = output<string[]>();
+
+  protected loading = this.objectsStore.loading;
+  protected error = this.objectsStore.error;
+  protected filteredItems = this.objectsStore.filteredItems;
+  protected selectedKeys = this.objectsStore.selectedKeys;
+  protected hasMore = this.objectsStore.hasMore;
+  protected searchQuery = this.objectsStore.searchQuery;
+  protected viewMode = this.objectsStore.viewMode;
+
+  protected isDragOver = false;
+
+  protected onSelectionChange(selection: {
+    key: string;
+    selected: boolean;
+    isRange?: boolean;
+  }): void {
+    if (selection.isRange && this.objectsStore.selectedKeys().size > 0) {
+      // Range selection - select from last selected to current
+      const selectedArray = Array.from(this.objectsStore.selectedKeys());
+      const lastSelected = selectedArray[selectedArray.length - 1];
+      this.objectsStore.selectRange(lastSelected, selection.key);
+    } else {
+      this.objectsStore.toggleSelection(selection.key);
+    }
+
+    // Emit current selection
+    this.itemsSelected.emit(Array.from(this.objectsStore.selectedKeys()));
+  }
+
+  protected onItemAction(action: { type: string; item: any }): void {
+    switch (action.type) {
+      case "navigate":
+        if (action.item.isFolder) {
+          // Navigate to folder - this would typically be handled by the parent
+          console.log("Navigate to folder:", action.item.key);
+        }
+        break;
+      case "rename":
+        this.showRenameDialog(action.item);
+        break;
+      case "delete":
+        this.showDeleteDialog([action.item.key]);
+        break;
+      case "copy-url":
+        this.copyPublicUrl(action.item.key);
+        break;
+    }
+  }
+
+  protected retry(): void {
+    this.objectsStore.loadItems(this.objectsStore.currentPrefix(), true);
+  }
+
+  protected async loadMore(): Promise<void> {
+    await this.objectsStore.loadMore();
+  }
+
+  protected triggerUpload(): void {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    input.accept = "image/*";
+    input.onchange = (event) => {
+      const files = (event.target as HTMLInputElement).files;
+      if (files && files.length > 0) {
+        this.handleFileUploads(Array.from(files));
+      }
+    };
+    input.click();
+  }
+
+  @HostListener("dragover", ["$event"])
+  protected onDragOver(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  @HostListener("dragenter", ["$event"])
+  protected onDragEnter(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = true;
+  }
+
+  @HostListener("dragleave", ["$event"])
+  protected onDragLeave(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    if (
+      !event.relatedTarget ||
+      !(event.currentTarget as Element).contains(event.relatedTarget as Node)
+    ) {
+      this.isDragOver = false;
+    }
+  }
+
+  @HostListener("drop", ["$event"])
+  protected onDrop(event: DragEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    this.isDragOver = false;
+
+    const files = Array.from(event.dataTransfer?.files || []);
+    if (files.length > 0) {
+      this.handleFileUploads(files);
+    }
+  }
+
+  protected onFilesDropped(files: File[]): void {
+    this.handleFileUploads(files);
+  }
+
+  private async handleFileUploads(files: File[]): Promise<void> {
+    for (const file of files) {
+      try {
+        await this.objectsStore.uploadFile(file);
+        this.toastService.success(
+          "Upload successful",
+          `${file.name} uploaded successfully`
+        );
+      } catch (error) {
+        this.toastService.error(
+          "Upload failed",
+          `Failed to upload ${file.name}`
+        );
+      }
+    }
+  }
+
+  private showRenameDialog(item: any): void {
+    const newName = prompt("Enter new name:", item.key.split("/").pop());
+    if (newName && newName !== item.key.split("/").pop()) {
+      this.objectsStore
+        .renameItem(item.key, newName)
+        .then(() => {
+          this.toastService.success("Renamed", `Item renamed to ${newName}`);
+        })
+        .catch((error) => {
+          this.toastService.error("Rename failed", error.message);
+        });
+    }
+  }
+
+  private showDeleteDialog(keys: string[]): void {
+    const itemCount = keys.length;
+    const message =
+      itemCount === 1
+        ? `Are you sure you want to delete this item?`
+        : `Are you sure you want to delete ${itemCount} items?`;
+
+    if (confirm(message)) {
+      this.objectsStore
+        .deleteItems(keys)
+        .then(() => {
+          this.toastService.success("Deleted", `${itemCount} item(s) deleted`);
+        })
+        .catch((error) => {
+          this.toastService.error("Delete failed", error.message);
+        });
+    }
+  }
+
+  private async copyPublicUrl(key: string): Promise<void> {
+    const publicUrl = this.configStore.config().publicBaseUrl
+      ? `${this.configStore.config().publicBaseUrl}/${key}`
+      : `No public URL configured`;
+
+    try {
+      await navigator.clipboard.writeText(publicUrl);
+      this.toastService.success("Copied!", "Public URL copied to clipboard");
+    } catch (error) {
+      this.toastService.error("Copy failed", "Could not copy to clipboard");
+    }
+  }
+}
